@@ -3,8 +3,9 @@ package com.example.concurrent_booking_system.event.service;
 import com.example.concurrent_booking_system.event.dto.EventResponseDto;
 import com.example.concurrent_booking_system.event.entity.Event;
 import com.example.concurrent_booking_system.event.repository.EventRepository;
-import org.springframework.transaction.annotation.Transactional;
+import com.example.concurrent_booking_system.exception.EventNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,7 +13,7 @@ import java.util.List;
 public class EventService {
     private final EventRepository eventRepository;
 
-    public EventService(EventRepository eventRepository){
+    public EventService(EventRepository eventRepository) {
         this.eventRepository = eventRepository;
     }
 
@@ -30,5 +31,13 @@ public class EventService {
                 event.getName(),
                 event.getDescription(),
                 event.getStartTime());
+    }
+
+    @Transactional(readOnly = true)
+    public EventResponseDto getEventById(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventNotFoundException(eventId));
+
+        return toResponse(event);
     }
 }

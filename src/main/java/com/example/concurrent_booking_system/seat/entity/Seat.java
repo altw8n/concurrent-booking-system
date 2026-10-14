@@ -40,4 +40,32 @@ public class Seat {
     @Version
     @Column(name = "version")
     private Long version;
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getEventId() {
+        return eventId;
+    }
+
+    public String getRowNumber() {
+        return rowNumber;
+    }
+
+    public Integer getSeatNumber() {
+        return seatNumber;
+    }
+
+    public SeatStatus getStatus() {
+        return status;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
 }
