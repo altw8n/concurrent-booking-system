@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -39,7 +38,6 @@ public class Seat {
     @Column(name = "price", nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
-    @Version
     @Column(name = "version")
     private Long version;
 
