@@ -1,6 +1,7 @@
 package com.example.concurrent_booking_system.booking.entity;
 
 import com.example.concurrent_booking_system.booking.BookingStatus;
+import com.example.concurrent_booking_system.seat.SeatStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -35,4 +36,17 @@ public class Booking {
 
     @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
+
+    public static Booking createActive(
+            Long userId,
+            Long seatId,
+            OffsetDateTime createdAt
+    ) {
+        Booking booking = new Booking();
+        booking.userId = userId;
+        booking.seatId = seatId;
+        booking.status = BookingStatus.ACTIVE;
+        booking.createdAt = createdAt;
+        return booking;
+    }
 }

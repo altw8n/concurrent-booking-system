@@ -10,11 +10,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "seats")
+@Getter
 public class Seat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,31 +43,7 @@ public class Seat {
     @Column(name = "version")
     private Long version;
 
-    public Long getId() {
-        return id;
-    }
-
-    public Long getEventId() {
-        return eventId;
-    }
-
-    public String getRowNumber() {
-        return rowNumber;
-    }
-
-    public Integer getSeatNumber() {
-        return seatNumber;
-    }
-
-    public SeatStatus getStatus() {
-        return status;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public Long getVersion() {
-        return version;
+    public void markBooked() {
+        this.status = SeatStatus.BOOKED;
     }
 }

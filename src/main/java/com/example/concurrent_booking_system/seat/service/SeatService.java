@@ -35,7 +35,7 @@ public class SeatService {
         if (!eventRepository.existsById(eventId)){
             throw new EventNotFoundException(eventId);
         }
-        return seatRepository.findAll().stream().map(this::toResponse).toList();
+        return seatRepository.findAllByEventId(eventId).stream().map(this::toResponse).toList();
     }
 
 }
