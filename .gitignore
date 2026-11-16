@@ -40,4 +40,5 @@ AGENTS.md
 
 # Generated pilot artifacts are kept locally; scripts and configuration are versioned.
 experiments/raw-results/
+experiments/processed-results/
 __pycache__/

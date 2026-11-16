@@ -1,0 +1,14 @@
+{
+  "strategy": "atomic",
+  "vus": 10,
+  "seats_per_wave": 2,
+  "warmup_waves": 3,
+  "measured_waves": 5,
+  "wave_interval_ms": 5000,
+  "request_timeout_ms": 3000,
+  "max_start_lag_ms": 250,
+  "pool_size": 10,
+  "jvm_heap_mb": 512,
+  "lock_timeout_ms": 2000,
+  "postgres_image": "postgres:17"
+}

@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: ${PILOT_POSTGRES_IMAGE:-postgres:17}
+    environment:
+      POSTGRES_DB: pilot_db
+      POSTGRES_USER: pilot_user
+      POSTGRES_PASSWORD: pilot_password
+    ports:
+      - "127.0.0.1:${PILOT_DB_PORT:-5433}:5432"
+    volumes:
+      - pilot_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pilot_user -d pilot_db"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  pilot_data:
