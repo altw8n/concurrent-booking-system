@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
-@SpringBootTest(properties = "spring.jpa.show-sql=true")
+@SpringBootTest(properties = {"spring.jpa.show-sql=true", "booking.strategy=naive"})
 class BookingTransactionIntegrationTest {
 
     private static final String FAILURE_CONSTRAINT = "chk_test_reject_booked_seat";

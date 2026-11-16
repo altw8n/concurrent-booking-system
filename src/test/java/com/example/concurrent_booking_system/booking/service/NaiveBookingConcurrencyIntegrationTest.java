@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 @Import(NaiveBookingConcurrencyIntegrationTest.BarrierTestConfiguration.class)
 @SpringBootTest(properties = {
+        "booking.strategy=naive",
         "spring.datasource.hikari.maximum-pool-size=4",
         "spring.datasource.hikari.minimum-idle=0"
 })

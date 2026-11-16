@@ -4,6 +4,7 @@ import com.example.concurrent_booking_system.booking.BookingStatus;
 import com.example.concurrent_booking_system.booking.dto.BookingResponseDto;
 import com.example.concurrent_booking_system.booking.service.BookingService;
 import com.example.concurrent_booking_system.exception.GlobalExceptionHandler;
+import com.example.concurrent_booking_system.exception.BookingConflictException;
 import com.example.concurrent_booking_system.exception.InvalidBookingRequestException;
 import com.example.concurrent_booking_system.exception.SeatAlreadyBookedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,5 +78,18 @@ class BookingControllerTest {
                         .content("{\"userId\":2}"))
                 .andExpect(status().isConflict())
                 .andExpect(content().string(containsString("SEAT_ALREADY_BOOKED")));
+    }
+
+    @Test
+    void returnsDistinctConflictCodeForConcurrentModification() throws Exception {
+        when(bookingService.bookSeat(1L, 3L, 2L)).thenThrow(new BookingConflictException(
+                3L, 1, new org.springframework.dao.OptimisticLockingFailureException("Version changed")
+        ));
+
+        mockMvc.perform(post("/api/events/1/seats/3/book")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":2}"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string(containsString("OPTIMISTIC_LOCK_CONFLICT")));
     }
 }

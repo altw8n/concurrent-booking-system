@@ -33,6 +33,12 @@ public class GlobalExceptionHandler {
         return new ApiErrorResponse("SEAT_ALREADY_BOOKED", exception.getMessage());
     }
 
+    @ExceptionHandler(BookingConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleBookingConflict(BookingConflictException exception) {
+        return new ApiErrorResponse("OPTIMISTIC_LOCK_CONFLICT", exception.getMessage());
+    }
+
     @ExceptionHandler(InvalidBookingRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleInvalidBookingRequest(InvalidBookingRequestException exception) {
