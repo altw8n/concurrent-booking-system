@@ -4,16 +4,21 @@ import com.example.concurrent_booking_system.booking.BookingStatus;
 import com.example.concurrent_booking_system.booking.dto.BookingResponseDto;
 import com.example.concurrent_booking_system.exception.BookingConflictException;
 import com.example.concurrent_booking_system.exception.BookingLockTimeoutException;
+import com.example.concurrent_booking_system.exception.BookingSerializationException;
 import com.example.concurrent_booking_system.exception.SeatAlreadyBookedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.transaction.TransactionSystemException;
 
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -25,6 +30,7 @@ class BookingServiceTest {
     private final OptimisticBookingStrategy optimistic = mock(OptimisticBookingStrategy.class);
     private final PessimisticBookingStrategy pessimistic = mock(PessimisticBookingStrategy.class);
     private final AtomicBookingStrategy atomic = mock(AtomicBookingStrategy.class);
+    private final SerializableBookingStrategy serializable = mock(SerializableBookingStrategy.class);
     private final BookingResponseDto response = new BookingResponseDto(
             5L, 2L, 3L, BookingStatus.ACTIVE, OffsetDateTime.now(), null
     );
@@ -149,9 +155,96 @@ class BookingServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service("unknown", 0));
         assertThrows(IllegalArgumentException.class, () -> service("optimistic", -1));
         assertThrows(IllegalArgumentException.class, () -> service("optimistic", 11));
+        assertThrows(IllegalArgumentException.class, () -> service("serializable", 0, -1));
+        assertThrows(IllegalArgumentException.class, () -> service("serializable", 0, 11));
+    }
+
+    @Test
+    void selectsSerializableStrategyWithoutCallingOtherStrategies() {
+        when(serializable.bookSeat(1L, 3L, 2L)).thenReturn(response);
+
+        assertSame(response, service("serializable", 0, 0).bookSeat(1L, 3L, 2L));
+        verifyNoInteractions(naive, optimistic, pessimistic, atomic);
+    }
+
+    @Test
+    void exposesSerializationFailureWithoutRetryByDefault() {
+        var failure = sqlFailure("40001");
+        when(serializable.bookSeat(1L, 3L, 2L)).thenThrow(failure);
+
+        var exception = assertThrows(BookingSerializationException.class,
+                () -> service("serializable", 2, 0).bookSeat(1L, 3L, 2L));
+
+        assertSame(failure, exception.getCause());
+        verify(serializable).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void retriesSerializationFailureFromTransactionCommit() {
+        var failure = new TransactionSystemException("Commit failed",
+                new RuntimeException("Rollback", new SQLException("Serialization failure", "40001")));
+        when(serializable.bookSeat(1L, 3L, 2L)).thenThrow(failure).thenReturn(response);
+
+        assertSame(response, service("serializable", 0, 1).bookSeat(1L, 3L, 2L));
+        verify(serializable, times(2)).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void stopsSerializableRetriesAtConfiguredLimit() {
+        when(serializable.bookSeat(1L, 3L, 2L)).thenThrow(sqlFailure("40001"));
+
+        var exception = assertThrows(BookingSerializationException.class,
+                () -> service("serializable", 0, 2).bookSeat(1L, 3L, 2L));
+
+        assertEquals("Could not serialize booking for seat 3 after 3 attempt(s)", exception.getMessage());
+        verify(serializable, times(3)).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void doesNotRetryOtherSqlStatesEvenWhenSpringUsesSameExceptionType() {
+        // A shared Spring exception class does not make a deadlock or timeout SQLSTATE 40001.
+        for (String state : new String[]{"40P01", "55P03", "23514"}) {
+            var failure = sqlFailure(state);
+            doThrow(failure).when(serializable).bookSeat(1L, 3L, 2L);
+            assertSame(failure, assertThrows(CannotAcquireLockException.class,
+                    () -> service("serializable", 0, 2).bookSeat(1L, 3L, 2L)));
+        }
+        verify(serializable, times(3)).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void doesNotRetrySerializableBusinessRejectionOrUnexpectedFailure() {
+        var occupied = new SeatAlreadyBookedException(3L);
+        var unexpected = new IllegalStateException("Unexpected failure");
+        when(serializable.bookSeat(1L, 3L, 2L)).thenThrow(occupied).thenThrow(unexpected);
+
+        assertSame(occupied, assertThrows(SeatAlreadyBookedException.class,
+                () -> service("serializable", 0, 2).bookSeat(1L, 3L, 2L)));
+        assertSame(unexpected, assertThrows(IllegalStateException.class,
+                () -> service("serializable", 0, 2).bookSeat(1L, 3L, 2L)));
+        verify(serializable, times(2)).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void doesNotApplySerializationRetryToOtherStrategies() {
+        var failure = sqlFailure("40001");
+        when(atomic.bookSeat(1L, 3L, 2L)).thenThrow(failure);
+
+        assertSame(failure, assertThrows(CannotAcquireLockException.class,
+                () -> service("atomic", 0, 2).bookSeat(1L, 3L, 2L)));
+        verify(atomic).bookSeat(1L, 3L, 2L);
+    }
+
+    private CannotAcquireLockException sqlFailure(String state) {
+        return new CannotAcquireLockException("SQL failed", new SQLException("Test failure", state));
     }
 
     private BookingService service(String strategy, int retries) {
-        return new BookingService(naive, optimistic, pessimistic, atomic, strategy, retries);
+        return service(strategy, retries, 0);
+    }
+
+    private BookingService service(String strategy, int optimisticRetries, int serializableRetries) {
+        return new BookingService(naive, optimistic, pessimistic, atomic, serializable,
+                strategy, optimisticRetries, serializableRetries);
     }
 }

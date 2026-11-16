@@ -39,6 +39,12 @@ public class GlobalExceptionHandler {
         return new ApiErrorResponse("OPTIMISTIC_LOCK_CONFLICT", exception.getMessage());
     }
 
+    @ExceptionHandler(BookingSerializationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleBookingSerialization(BookingSerializationException exception) {
+        return new ApiErrorResponse("SERIALIZATION_FAILURE", exception.getMessage());
+    }
+
     @ExceptionHandler(BookingLockTimeoutException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ApiErrorResponse handleBookingLockTimeout(BookingLockTimeoutException exception) {

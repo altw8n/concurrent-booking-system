@@ -6,6 +6,7 @@ import com.example.concurrent_booking_system.booking.service.BookingService;
 import com.example.concurrent_booking_system.exception.GlobalExceptionHandler;
 import com.example.concurrent_booking_system.exception.BookingConflictException;
 import com.example.concurrent_booking_system.exception.BookingLockTimeoutException;
+import com.example.concurrent_booking_system.exception.BookingSerializationException;
 import com.example.concurrent_booking_system.exception.InvalidBookingRequestException;
 import com.example.concurrent_booking_system.exception.SeatAlreadyBookedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +48,19 @@ class BookingControllerTest {
                         .content("{\"userId\":2}"))
                 .andExpect(status().isCreated())
                 .andExpect(content().string(containsString("\"status\":\"ACTIVE\"")));
+    }
+
+    @Test
+    void returnsDistinctConflictCodeForSerializationFailure() throws Exception {
+        when(bookingService.bookSeat(1L, 3L, 2L)).thenThrow(new BookingSerializationException(
+                3L, 1, new RuntimeException("Serialization failure")
+        ));
+
+        mockMvc.perform(post("/api/events/1/seats/3/book")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":2}"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string(containsString("SERIALIZATION_FAILURE")));
     }
 
     @Test
