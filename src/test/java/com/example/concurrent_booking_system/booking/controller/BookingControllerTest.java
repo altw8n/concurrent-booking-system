@@ -5,6 +5,7 @@ import com.example.concurrent_booking_system.booking.dto.BookingResponseDto;
 import com.example.concurrent_booking_system.booking.service.BookingService;
 import com.example.concurrent_booking_system.exception.GlobalExceptionHandler;
 import com.example.concurrent_booking_system.exception.BookingConflictException;
+import com.example.concurrent_booking_system.exception.BookingLockTimeoutException;
 import com.example.concurrent_booking_system.exception.InvalidBookingRequestException;
 import com.example.concurrent_booking_system.exception.SeatAlreadyBookedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,5 +92,18 @@ class BookingControllerTest {
                         .content("{\"userId\":2}"))
                 .andExpect(status().isConflict())
                 .andExpect(content().string(containsString("OPTIMISTIC_LOCK_CONFLICT")));
+    }
+
+    @Test
+    void returnsServiceUnavailableForPessimisticLockTimeout() throws Exception {
+        when(bookingService.bookSeat(1L, 3L, 2L)).thenThrow(new BookingLockTimeoutException(
+                3L, 2000, new RuntimeException("Lock timed out")
+        ));
+
+        mockMvc.perform(post("/api/events/1/seats/3/book")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\":2}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().string(containsString("PESSIMISTIC_LOCK_TIMEOUT")));
     }
 }

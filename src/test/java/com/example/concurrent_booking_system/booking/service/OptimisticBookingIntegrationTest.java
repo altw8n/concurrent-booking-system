@@ -71,6 +71,7 @@ class OptimisticBookingIntegrationTest {
     @Autowired private BookingService bookingService;
     @Autowired private NaiveBookingStrategy naiveStrategy;
     @Autowired private OptimisticBookingStrategy optimisticStrategy;
+    @Autowired private PessimisticBookingStrategy pessimisticStrategy;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private SeatReadSynchronizer synchronizer;
 
@@ -151,7 +152,8 @@ class OptimisticBookingIntegrationTest {
     @Test
     void retryUsesNewTransactionAndSeesCommittedBookedSeat() throws Exception {
         // The strategy arguments are real Spring transaction proxies, not manually constructed strategies.
-        BookingService retryingService = new BookingService(naiveStrategy, optimisticStrategy, "optimistic", 1);
+        BookingService retryingService = new BookingService(
+                naiveStrategy, optimisticStrategy, pessimisticStrategy, "optimistic", 1);
         List<Attempt> results = runRace(retryingService);
 
         assertSingleWinner(results);
@@ -168,9 +170,16 @@ class OptimisticBookingIntegrationTest {
 
     @Test
     void rollsBackInsertAndVersionWhenSeatUpdateFails() {
+        Long previouslyBookedSeatId = jdbcTemplate.queryForObject("""
+                INSERT INTO seats (event_id, row_number, seat_number, status, price)
+                VALUES (?, 'A', 2, 'FREE', 1500.00) RETURNING id
+                """, Long.class, eventId);
+        bookingService.bookSeat(eventId, previouslyBookedSeatId, secondUserId);
+        // Scope failure injection to this seat so test order cannot invalidate the constraint.
         jdbcTemplate.execute("""
-                ALTER TABLE seats ADD CONSTRAINT chk_test_optimistic_failure CHECK (status <> 'BOOKED')
-                """);
+                ALTER TABLE seats ADD CONSTRAINT chk_test_optimistic_failure
+                CHECK (id <> %d OR status <> 'BOOKED')
+                """.formatted(seatId));
         try {
             var exception = assertThrows(DataIntegrityViolationException.class,
                     () -> bookingService.bookSeat(eventId, seatId, firstUserId));
@@ -180,6 +189,10 @@ class OptimisticBookingIntegrationTest {
             assertEquals(0L, countBookings());
             assertEquals("FREE", seatStatus());
             assertEquals(0L, seatVersion());
+            assertEquals("BOOKED", jdbcTemplate.queryForObject(
+                    "SELECT status FROM seats WHERE id = ?", String.class, previouslyBookedSeatId));
+            assertEquals(1L, jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM bookings WHERE seat_id = ?", Long.class, previouslyBookedSeatId));
         } finally {
             jdbcTemplate.execute("ALTER TABLE seats DROP CONSTRAINT chk_test_optimistic_failure");
         }

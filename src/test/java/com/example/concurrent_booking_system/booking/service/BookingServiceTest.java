@@ -3,6 +3,7 @@ package com.example.concurrent_booking_system.booking.service;
 import com.example.concurrent_booking_system.booking.BookingStatus;
 import com.example.concurrent_booking_system.booking.dto.BookingResponseDto;
 import com.example.concurrent_booking_system.exception.BookingConflictException;
+import com.example.concurrent_booking_system.exception.BookingLockTimeoutException;
 import com.example.concurrent_booking_system.exception.SeatAlreadyBookedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -22,6 +23,7 @@ class BookingServiceTest {
 
     private final NaiveBookingStrategy naive = mock(NaiveBookingStrategy.class);
     private final OptimisticBookingStrategy optimistic = mock(OptimisticBookingStrategy.class);
+    private final PessimisticBookingStrategy pessimistic = mock(PessimisticBookingStrategy.class);
     private final BookingResponseDto response = new BookingResponseDto(
             5L, 2L, 3L, BookingStatus.ACTIVE, OffsetDateTime.now(), null
     );
@@ -40,6 +42,24 @@ class BookingServiceTest {
 
         assertSame(response, service("optimistic", 0).bookSeat(1L, 3L, 2L));
         verifyNoInteractions(naive);
+    }
+
+    @Test
+    void selectsPessimisticStrategyWithoutCallingOtherStrategies() {
+        when(pessimistic.bookSeat(1L, 3L, 2L)).thenReturn(response);
+
+        assertSame(response, service("pessimistic", 0).bookSeat(1L, 3L, 2L));
+        verifyNoInteractions(naive, optimistic);
+    }
+
+    @Test
+    void doesNotRetryPessimisticTimeoutWhenOptimisticRetriesAreEnabled() {
+        var failure = new BookingLockTimeoutException(3L, 2000, new RuntimeException("Lock timed out"));
+        when(pessimistic.bookSeat(1L, 3L, 2L)).thenThrow(failure);
+
+        assertSame(failure, assertThrows(BookingLockTimeoutException.class,
+                () -> service("pessimistic", 2).bookSeat(1L, 3L, 2L)));
+        verify(pessimistic).bookSeat(1L, 3L, 2L);
     }
 
     @Test
@@ -113,6 +133,6 @@ class BookingServiceTest {
     }
 
     private BookingService service(String strategy, int retries) {
-        return new BookingService(naive, optimistic, strategy, retries);
+        return new BookingService(naive, optimistic, pessimistic, strategy, retries);
     }
 }
