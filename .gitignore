@@ -37,3 +37,7 @@ out/
 .vscode/
 
 AGENTS.md
+
+# Generated pilot artifacts are kept locally; scripts and configuration are versioned.
+experiments/raw-results/
+__pycache__/
