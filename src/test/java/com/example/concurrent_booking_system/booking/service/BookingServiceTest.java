@@ -24,6 +24,7 @@ class BookingServiceTest {
     private final NaiveBookingStrategy naive = mock(NaiveBookingStrategy.class);
     private final OptimisticBookingStrategy optimistic = mock(OptimisticBookingStrategy.class);
     private final PessimisticBookingStrategy pessimistic = mock(PessimisticBookingStrategy.class);
+    private final AtomicBookingStrategy atomic = mock(AtomicBookingStrategy.class);
     private final BookingResponseDto response = new BookingResponseDto(
             5L, 2L, 3L, BookingStatus.ACTIVE, OffsetDateTime.now(), null
     );
@@ -60,6 +61,24 @@ class BookingServiceTest {
         assertSame(failure, assertThrows(BookingLockTimeoutException.class,
                 () -> service("pessimistic", 2).bookSeat(1L, 3L, 2L)));
         verify(pessimistic).bookSeat(1L, 3L, 2L);
+    }
+
+    @Test
+    void selectsAtomicStrategyWithoutCallingOtherStrategies() {
+        when(atomic.bookSeat(1L, 3L, 2L)).thenReturn(response);
+
+        assertSame(response, service("atomic", 0).bookSeat(1L, 3L, 2L));
+        verifyNoInteractions(naive, optimistic, pessimistic);
+    }
+
+    @Test
+    void doesNotRetryAtomicBusinessRejectionWhenOptimisticRetriesAreEnabled() {
+        var failure = new SeatAlreadyBookedException(3L);
+        when(atomic.bookSeat(1L, 3L, 2L)).thenThrow(failure);
+
+        assertSame(failure, assertThrows(SeatAlreadyBookedException.class,
+                () -> service("atomic", 2).bookSeat(1L, 3L, 2L)));
+        verify(atomic).bookSeat(1L, 3L, 2L);
     }
 
     @Test
@@ -133,6 +152,6 @@ class BookingServiceTest {
     }
 
     private BookingService service(String strategy, int retries) {
-        return new BookingService(naive, optimistic, pessimistic, strategy, retries);
+        return new BookingService(naive, optimistic, pessimistic, atomic, strategy, retries);
     }
 }

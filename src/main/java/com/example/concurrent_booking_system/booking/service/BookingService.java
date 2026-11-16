@@ -17,6 +17,7 @@ public class BookingService {
             NaiveBookingStrategy naiveStrategy,
             OptimisticBookingStrategy optimisticStrategy,
             PessimisticBookingStrategy pessimisticStrategy,
+            AtomicBookingStrategy atomicStrategy,
             @Value("${booking.strategy:naive}") String strategyName,
             @Value("${booking.optimistic.max-retries:0}") int maxRetries
     ) {
@@ -27,7 +28,9 @@ public class BookingService {
             case "naive" -> naiveStrategy;
             case "optimistic" -> optimisticStrategy;
             case "pessimistic" -> pessimisticStrategy;
-            default -> throw new IllegalArgumentException("booking.strategy must be naive, optimistic or pessimistic");
+            case "atomic" -> atomicStrategy;
+            default -> throw new IllegalArgumentException(
+                    "booking.strategy must be naive, optimistic, pessimistic or atomic");
         };
         this.maxRetries = strategyName.equals("optimistic") ? maxRetries : 0;
     }

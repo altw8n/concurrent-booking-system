@@ -72,6 +72,7 @@ class OptimisticBookingIntegrationTest {
     @Autowired private NaiveBookingStrategy naiveStrategy;
     @Autowired private OptimisticBookingStrategy optimisticStrategy;
     @Autowired private PessimisticBookingStrategy pessimisticStrategy;
+    @Autowired private AtomicBookingStrategy atomicStrategy;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private SeatReadSynchronizer synchronizer;
 
@@ -153,7 +154,7 @@ class OptimisticBookingIntegrationTest {
     void retryUsesNewTransactionAndSeesCommittedBookedSeat() throws Exception {
         // The strategy arguments are real Spring transaction proxies, not manually constructed strategies.
         BookingService retryingService = new BookingService(
-                naiveStrategy, optimisticStrategy, pessimisticStrategy, "optimistic", 1);
+                naiveStrategy, optimisticStrategy, pessimisticStrategy, atomicStrategy, "optimistic", 1);
         List<Attempt> results = runRace(retryingService);
 
         assertSingleWinner(results);
