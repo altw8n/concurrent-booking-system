@@ -27,4 +27,15 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
               AND status = 'FREE'
             """, nativeQuery = true)
     int bookIfFree(@Param("eventId") Long eventId, @Param("seatId") Long seatId);
+
+    // Call only after locking the seat and cancelling the target booking in the same transaction.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE seats SET status = 'FREE', version = version + 1
+            WHERE id = :seatId
+              AND NOT EXISTS (
+                  SELECT 1 FROM bookings WHERE seat_id = :seatId AND status = 'ACTIVE'
+              )
+            """, nativeQuery = true)
+    int releaseIfNoActiveBookings(@Param("seatId") Long seatId);
 }
