@@ -169,5 +169,3 @@ curl -i -X DELETE 'http://localhost:8080/api/bookings/10?userId=1'
 ```text
 feat: add booking history and concurrency-safe cancellation
 ```
-
-Семантика блокировок и снимков: [PostgreSQL 17: Explicit Locking](https://www.postgresql.org/docs/17/explicit-locking.html), [Read Committed](https://www.postgresql.org/docs/17/transaction-iso.html#XACT-READ-COMMITTED). Детали выбранного протокола отмены и его границы описаны выше; общие свойства PostgreSQL сами по себе не доказывают корректность произвольного Java-кода.

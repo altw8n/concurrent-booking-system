@@ -177,11 +177,3 @@ feat: add pessimistic booking with lock timeout handling
 В pessimistic- и optimistic-тестах ошибка исправлена: временное ограничение имеет вид `CHECK (id <> <currentSeatId> OR status <> 'BOOKED')`. Оно запрещает бронирование только текущего тестового места. Оба теста теперь специально создают другое забронированное место до добавления ограничения и проверяют его сохранность после отката. Это воспроизводит прежнюю проблему независимо от порядка запуска методов.
 
 Код приложения и рабочие миграции не менялись. Исправленные тестовые классы скомпилированы JDK 21; повторное выполнение PostgreSQL-тестов после исправления ещё не подтверждено. Нужен новый полный запуск `./gradlew test --rerun-tasks`.
-
-## Источники
-
-- [Spring Data JPA: @Lock](https://docs.spring.io/spring-data/jpa/reference/jpa/locking.html).
-- [PostgreSQL: блокировки строк](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS).
-- [PostgreSQL: lock_timeout](https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-LOCK-TIMEOUT).
-- [PostgreSQL: SQLSTATE](https://www.postgresql.org/docs/17/errcodes-appendix.html).
-- Локальные исходники зависимостей: `PostgreSQLDialect` из Hibernate 7.4.5 и `HibernateExceptionTranslator` из Spring ORM 7.0.9.

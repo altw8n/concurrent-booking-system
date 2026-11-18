@@ -162,7 +162,3 @@ Gradle Wrapper не смог создать lock-файл в read-only `~/.gradl
 feat: add atomic conditional booking strategy
 ```
 
-## Источники
-
-- [Spring Data JPA: modifying queries](https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html#jpa.modifying-queries).
-- [PostgreSQL: READ COMMITTED и повторная проверка WHERE](https://www.postgresql.org/docs/17/transaction-iso.html#XACT-READ-COMMITTED).
